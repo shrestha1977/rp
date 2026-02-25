@@ -2,6 +2,7 @@ import streamlit as st
 import random
 import time
 import pandas as pd
+from streamlit_autorefresh import st_autorefresh
 
 TOTAL_QUESTIONS = 42
 TIME_LIMIT = 5
@@ -16,18 +17,9 @@ COLORS = {
 NEUTRAL_WORDS = ["DOG", "CAR", "TREE", "HOUSE"]
 
 
-# ================= TIMER MODEL =================
-
-def safe_elapsed(start_time):
-    if start_time is None:
-        return 0
-    return max(0, time.time() - start_time)
-
-
 # ================= QUESTION ENGINE =================
 
 def generate_question():
-
     q_type = random.choice(["congruent", "incongruent", "neutral"])
 
     if q_type == "neutral":
@@ -47,10 +39,7 @@ def generate_question():
     return word, color, condition
 
 
-# ================= RESPONSE LOGGER =================
-
 def record_response(results, q_no, word, color, condition, answer, correct, rt):
-
     results.append({
         "Question": q_no,
         "Word": word,
@@ -62,26 +51,16 @@ def record_response(results, q_no, word, color, condition, answer, correct, rt):
     })
 
 
-# ================= ADVANCE QUESTION =================
-
 def next_question():
-
     st.session_state.q_index += 1
     st.session_state.start_time = time.time()
     st.session_state.answered = False
 
-    st.session_state.word, st.session_state.color, st.session_state.condition = generate_question()
-
-
-# ================= CLOUD HEARTBEAT =================
-
-def cloud_timer_pulse():
-
-    if st.session_state.get("current_stage") == "stroop":
-
-        if time.time() - st.session_state.get("heartbeat", time.time()) > 0.8:
-            st.session_state.heartbeat = time.time()
-            st.rerun()
+    (
+        st.session_state.word,
+        st.session_state.color,
+        st.session_state.condition
+    ) = generate_question()
 
 
 # ================= MAIN ENGINE =================
@@ -90,7 +69,7 @@ def run_stroop_test():
 
     st.title("🧠 Stroop Color–Word Test")
 
-    # ---------- SESSION INIT ----------
+    # -------- SESSION INIT --------
 
     if "stroop_started" not in st.session_state:
         st.session_state.stroop_started = False
@@ -104,20 +83,37 @@ def run_stroop_test():
     if "answered" not in st.session_state:
         st.session_state.answered = False
 
-    # ---------- START TEST ----------
+    # -------- START --------
 
     if not st.session_state.stroop_started:
 
-        st.session_state.stroop_started = True
-        st.session_state.q_index = 1
-        st.session_state.results = []
+        st.subheader("📋 Instructions")
+        st.write("""
+- Select the COLOR of the text, not the word.
+- Some words may not represent colors.
+- Each question has 5 seconds.
+- Total questions: 42
+""")
 
-        st.session_state.start_time = time.time()
+        if st.button("▶️ Start Test"):
 
-        st.session_state.word, st.session_state.color, st.session_state.condition = generate_question()
-        st.session_state.answered = False
+            st.session_state.stroop_started = True
+            st.session_state.q_index = 1
+            st.session_state.results = []
+            st.session_state.start_time = time.time()
 
-    # ---------- COMPLETION ----------
+            (
+                st.session_state.word,
+                st.session_state.color,
+                st.session_state.condition
+            ) = generate_question()
+
+            st.session_state.answered = False
+            st.rerun()
+
+        return
+
+    # -------- FINISH --------
 
     if st.session_state.q_index > TOTAL_QUESTIONS:
 
@@ -168,8 +164,7 @@ def run_stroop_test():
                 "word",
                 "color",
                 "condition",
-                "start_time",
-                "heartbeat"
+                "start_time"
             ]:
                 st.session_state.pop(key, None)
 
@@ -178,13 +173,17 @@ def run_stroop_test():
 
         return
 
-    # ---------- QUESTION LOOP ----------
+    # -------- TIMER (STABLE) --------
 
-    elapsed = safe_elapsed(st.session_state.start_time)
+    st_autorefresh(interval=1000, key="stroop_timer")
+
+    elapsed = time.time() - st.session_state.start_time
     remaining = max(0, int(TIME_LIMIT - elapsed))
 
     st.write(f"### Question {st.session_state.q_index} / {TOTAL_QUESTIONS}")
     st.warning(f"⏱ Time left: {remaining} seconds")
+
+    # -------- DISPLAY --------
 
     st.markdown(
         f"<h1 style='color:{st.session_state.color}; text-align:center;'>"
@@ -192,17 +191,15 @@ def run_stroop_test():
         unsafe_allow_html=True
     )
 
-    # Button Layout
-    col_buttons = st.columns(len(COLORS))
+    # -------- ANSWERS --------
 
-    for col, color_name in zip(col_buttons, COLORS.keys()):
+    cols = st.columns(4)
 
+    for color_name, col in zip(COLORS.keys(), cols):
         with col:
-
             if st.button(color_name, key=f"{st.session_state.q_index}_{color_name}") and not st.session_state.answered:
 
                 rt = round(elapsed, 2)
-
                 correct = color_name.lower() == st.session_state.color
 
                 record_response(
@@ -220,7 +217,7 @@ def run_stroop_test():
                 next_question()
                 st.rerun()
 
-    # ---------- TIMEOUT HANDLING ----------
+    # -------- TIMEOUT --------
 
     if remaining == 0 and not st.session_state.answered:
 
@@ -237,5 +234,3 @@ def run_stroop_test():
 
         next_question()
         st.rerun()
-
-    cloud_timer_pulse()

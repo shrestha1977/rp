@@ -16,9 +16,18 @@ COLORS = {
 NEUTRAL_WORDS = ["DOG", "CAR", "TREE", "HOUSE"]
 
 
-# ================= QUESTION GENERATOR =================
+# ================= TIMER MODEL =================
+
+def safe_elapsed(start_time):
+    if start_time is None:
+        return 0
+    return max(0, time.time() - start_time)
+
+
+# ================= QUESTION ENGINE =================
 
 def generate_question():
+
     q_type = random.choice(["congruent", "incongruent", "neutral"])
 
     if q_type == "neutral":
@@ -38,6 +47,8 @@ def generate_question():
     return word, color, condition
 
 
+# ================= RESPONSE LOGGER =================
+
 def record_response(results, q_no, word, color, condition, answer, correct, rt):
 
     results.append({
@@ -51,6 +62,8 @@ def record_response(results, q_no, word, color, condition, answer, correct, rt):
     })
 
 
+# ================= QUESTION ADVANCE =================
+
 def next_question():
 
     st.session_state.q_index += 1
@@ -60,13 +73,13 @@ def next_question():
     st.session_state.word, st.session_state.color, st.session_state.condition = generate_question()
 
 
-# ================= MAIN TEST ENGINE =================
+# ================= MAIN ENGINE =================
 
 def run_stroop_test():
 
     st.title("🧠 Stroop Color–Word Test")
 
-    # ---------- Session Initialization ----------
+    # ---------- SESSION INIT ----------
 
     if "stroop_started" not in st.session_state:
         st.session_state.stroop_started = False
@@ -80,26 +93,20 @@ def run_stroop_test():
     if "answered" not in st.session_state:
         st.session_state.answered = False
 
-    # ---------- Start Test ----------
+    # ---------- START TEST ----------
 
     if not st.session_state.stroop_started:
 
-        if st.button("Start Stroop Test"):
+        st.session_state.stroop_started = True
+        st.session_state.q_index = 1
+        st.session_state.results = []
 
-            st.session_state.stroop_started = True
-            st.session_state.q_index = 1
-            st.session_state.results = []
-            st.session_state.start_time = time.time()
+        st.session_state.start_time = time.time()
 
-            st.session_state.word, st.session_state.color, st.session_state.condition = generate_question()
+        st.session_state.word, st.session_state.color, st.session_state.condition = generate_question()
+        st.session_state.answered = False
 
-            st.session_state.answered = False
-
-            st.rerun()
-
-        return
-
-    # ---------- Completion Phase ----------
+    # ---------- COMPLETION ----------
 
     if st.session_state.q_index > TOTAL_QUESTIONS:
 
@@ -107,14 +114,9 @@ def run_stroop_test():
 
         df = pd.DataFrame(st.session_state.results)
 
-        if len(df) == 0:
-            st.warning("No responses recorded.")
-            return
-
         total_trials = len(df)
         total_errors = total_trials - df["Correct"].sum()
-
-        error_rate = (total_errors / total_trials) * 100
+        error_rate = (total_errors / total_trials) * 100 if total_trials > 0 else 0
 
         df_correct = df[df["Correct"] == True]
 
@@ -124,7 +126,6 @@ def run_stroop_test():
         incong_rt = df_correct[df_correct["Condition"] == "Incongruent"]["Reaction Time (s)"].mean()
 
         stroop_effect = None
-
         if pd.notna(cong_rt) and pd.notna(incong_rt):
             stroop_effect = incong_rt - cong_rt
 
@@ -134,10 +135,7 @@ def run_stroop_test():
 
         col1.metric("Error Rate (%)", f"{error_rate:.2f}")
         col2.metric("Mean RT (Correct Only) (s)", f"{mean_rt:.2f}" if pd.notna(mean_rt) else "N/A")
-        col3.metric(
-            "Stroop Interference (s)",
-            f"{stroop_effect:.2f}" if stroop_effect is not None else "N/A"
-        )
+        col3.metric("Stroop Interference (s)", f"{stroop_effect:.2f}" if stroop_effect is not None else "N/A")
 
         st.subheader("📋 Detailed Responses")
         st.dataframe(df, use_container_width=True)
@@ -168,9 +166,9 @@ def run_stroop_test():
 
         return
 
-    # ---------- Question Display ----------
+    # ---------- QUESTION LOOP ----------
 
-    elapsed = max(0, time.time() - st.session_state.start_time)
+    elapsed = safe_elapsed(st.session_state.start_time)
     remaining = max(0, int(TIME_LIMIT - elapsed))
 
     st.write(f"### Question {st.session_state.q_index} / {TOTAL_QUESTIONS}")
@@ -209,7 +207,7 @@ def run_stroop_test():
                 next_question()
                 st.rerun()
 
-    # ---------- Timeout Handling ----------
+    # ---------- TIMEOUT HANDLING ----------
 
     if remaining == 0 and not st.session_state.answered:
 

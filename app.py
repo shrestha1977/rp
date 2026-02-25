@@ -178,13 +178,3 @@ elif st.session_state.current_stage == "final":
     st.success("You may now close this window.")
 
 
-# =====================================================
-# CLOUD HEARTBEAT PROTECTION
-# =====================================================
-
-if st.session_state.current_stage in ["math", "stroop", "mental"]:
-
-    if time.time() - st.session_state.heartbeat > 2:
-
-        st.session_state.heartbeat = time.time()
-        st.rerun()

@@ -24,68 +24,53 @@ TOTAL_QUESTIONS = 15
 QUESTION_TIME_LIMIT = 10
 
 
-# ================= SAFE TIMER MODEL =================
-
-def safe_elapsed(start_time):
-    if start_time is None:
-        return 0
-    return max(0, time.time() - start_time)
-
-
-# ================= MAIN ENGINE =================
-
 def run_mental_rotation_test():
 
     st.title("🧠 Mental Rotation Task")
 
-    # ---------- Session Initialization ----------
-
+    # Session initialization
     if "mrt_initialized" not in st.session_state:
         st.session_state.mrt_initialized = True
         st.session_state.mrt_question = 0
         st.session_state.mrt_results = []
-        st.session_state.mrt_question_start = None
+        st.session_state.mrt_question_start = time.time()
+
         st.session_state.mrt_randomized = random.sample(
             range(len(image_sets)), TOTAL_QUESTIONS
         )
+
         st.session_state.mrt_options = None
 
-    # ---------- Response Logger ----------
+    def safe_elapsed(start_time):
+        return max(0, time.time() - start_time)
 
     def record_answer(is_correct, timed_out=False):
 
-        if st.session_state.mrt_question_start is None:
-            return
-
-        reaction_time = safe_elapsed(st.session_state.mrt_question_start)
+        rt = safe_elapsed(st.session_state.mrt_question_start)
 
         st.session_state.mrt_results.append({
             "correct": is_correct,
-            "time": reaction_time,
+            "time": rt,
             "timed_out": timed_out
         })
 
         st.session_state.mrt_question += 1
-        st.session_state.mrt_question_start = None
+        st.session_state.mrt_question_start = time.time()
         st.session_state.mrt_options = None
 
-    # ---------- Completion Phase ----------
+    # ================= COMPLETION PHASE =================
 
     if st.session_state.mrt_question >= TOTAL_QUESTIONS:
 
-        correct_count = sum(
-            1 for r in st.session_state.mrt_results if r["correct"]
-        )
+        correct = sum(r["correct"] for r in st.session_state.mrt_results)
 
-        accuracy = (correct_count / TOTAL_QUESTIONS) * 100
+        accuracy = (correct / TOTAL_QUESTIONS) * 100
 
         avg_time = sum(
             r["time"] for r in st.session_state.mrt_results
-        ) / TOTAL_QUESTIONS if st.session_state.mrt_results else 0
+        ) / max(1, len(st.session_state.mrt_results))
 
-        timed_out = sum(
-            1 for r in st.session_state.mrt_results if r["timed_out"]
-        )
+        timed_out = sum(r["timed_out"] for r in st.session_state.mrt_results)
 
         st.markdown("## 🧠 Mental Rotation Results")
 
@@ -99,29 +84,19 @@ def run_mental_rotation_test():
 
         if st.button("Finish Assessment"):
 
-            for key in [
-                "mrt_initialized",
-                "mrt_question",
-                "mrt_results",
-                "mrt_question_start",
-                "mrt_randomized",
-                "mrt_options",
-                "heartbeat"
-            ]:
-                st.session_state.pop(key, None)
-
             st.session_state.current_stage = "final"
+
+            for k in list(st.session_state.keys()):
+                if k.startswith("mrt_"):
+                    del st.session_state[k]
+
             st.rerun()
 
         return
 
-    # ---------- Question Phase ----------
-
-    if st.session_state.mrt_question_start is None:
-        st.session_state.mrt_question_start = time.time()
+    # ================= TIMER PHASE =================
 
     elapsed = safe_elapsed(st.session_state.mrt_question_start)
-
     remaining = max(0, QUESTION_TIME_LIMIT - elapsed)
 
     st.markdown(
@@ -130,11 +105,13 @@ def run_mental_rotation_test():
 
     st.progress(remaining / QUESTION_TIME_LIMIT)
 
-    # Timeout detection
+    # Timeout check
     if elapsed >= QUESTION_TIME_LIMIT:
         record_answer(False, timed_out=True)
         st.rerun()
         return
+
+    # ================= QUESTION DISPLAY =================
 
     trial_idx = st.session_state.mrt_randomized[
         st.session_state.mrt_question
@@ -143,12 +120,15 @@ def run_mental_rotation_test():
     target_img, correct_img, wrong_img = image_sets[trial_idx]
 
     if st.session_state.mrt_options is None:
+
         options = [
             {"img": correct_img, "correct": True},
             {"img": wrong_img, "correct": False}
         ]
+
         random.shuffle(options)
         st.session_state.mrt_options = options
+
     else:
         options = st.session_state.mrt_options
 
@@ -158,20 +138,14 @@ def run_mental_rotation_test():
 
     with col1:
         st.image(options[0]["img"], width=200)
+
         if st.button("Option A"):
             record_answer(options[0]["correct"])
             st.rerun()
 
     with col2:
         st.image(options[1]["img"], width=200)
+
         if st.button("Option B"):
             record_answer(options[1]["correct"])
             st.rerun()
-
-    # Cloud scheduler pulse (prevents timer freeze in deployment)
-    if "heartbeat" not in st.session_state:
-        st.session_state.heartbeat = time.time()
-
-    if time.time() - st.session_state.heartbeat > 0.8:
-        st.session_state.heartbeat = time.time()
-        st.rerun()

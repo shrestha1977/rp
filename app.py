@@ -7,12 +7,20 @@ from mental_rotation_test import run_mental_rotation_test
 
 st.set_page_config(page_title="Cognitive Assessment Tool", layout="centered")
 
+
 # =====================================================
-# SESSION STATE INITIALIZATION
+# CLOUD SAFE SESSION INITIALIZATION
 # =====================================================
 
 if "current_stage" not in st.session_state:
     st.session_state.current_stage = "consent"
+
+if "stage_lock" not in st.session_state:
+    st.session_state.stage_lock = True
+
+if "heartbeat" not in st.session_state:
+    st.session_state.heartbeat = time.time()
+
 
 # =====================================================
 # CONSENT + DEMOGRAPHICS PAGE
@@ -31,7 +39,7 @@ if st.session_state.current_stage == "consent":
     - My participation is voluntary and I may withdraw at any time.
     """)
 
-    consent = st.checkbox("I agree to participate in this study")
+    consent = st.checkbox("I agree to participate")
 
     st.markdown("---")
     st.markdown("### Baseline & Demographic Information")
@@ -103,8 +111,11 @@ if st.session_state.current_stage == "consent":
             "prior_exposure": prior_exposure
         }
 
+        st.session_state.stage_lock = False
         st.session_state.current_stage = "instructions"
+
         st.rerun()
+
 
 # =====================================================
 # INSTRUCTION SCREEN
@@ -127,32 +138,29 @@ elif st.session_state.current_stage == "instructions":
     """)
 
     if st.button("Continue to Test"):
+
+        st.session_state.stage_lock = False
         st.session_state.current_stage = "math"
+
         st.rerun()
 
+
 # =====================================================
-# MATH TEST
+# TEST ENGINE ROUTER
 # =====================================================
 
 elif st.session_state.current_stage == "math":
     run_math_test()
 
-# =====================================================
-# STROOP TEST
-# =====================================================
-
 elif st.session_state.current_stage == "stroop":
     run_stroop_test()
-
-# =====================================================
-# MENTAL ROTATION TEST
-# =====================================================
 
 elif st.session_state.current_stage == "mental":
     run_mental_rotation_test()
 
+
 # =====================================================
-# FINAL THANK YOU SCREEN
+# FINAL SCREEN
 # =====================================================
 
 elif st.session_state.current_stage == "final":
@@ -168,3 +176,15 @@ elif st.session_state.current_stage == "final":
     """)
 
     st.success("You may now close this window.")
+
+
+# =====================================================
+# CLOUD HEARTBEAT PROTECTION
+# =====================================================
+
+if st.session_state.current_stage in ["math", "stroop", "mental"]:
+
+    if time.time() - st.session_state.heartbeat > 2:
+
+        st.session_state.heartbeat = time.time()
+        st.rerun()

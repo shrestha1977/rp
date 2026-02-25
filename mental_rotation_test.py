@@ -131,6 +131,7 @@ def run_mental_rotation_test():
     if elapsed >= QUESTION_TIME_LIMIT:
         record_answer(False, timed_out=True)
         st.rerun()
+        return
 
     trial_idx = st.session_state.mrt_randomized[
         st.session_state.mrt_question

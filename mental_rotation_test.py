@@ -171,4 +171,4 @@ def run_mental_rotation_test():
             st.rerun()
 
     # Smooth refresh without blocking
-    st.experimental_rerun()
+    st.rerun()

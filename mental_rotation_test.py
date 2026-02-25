@@ -24,7 +24,7 @@ TOTAL_QUESTIONS = 15
 QUESTION_TIME_LIMIT = 10
 
 
-# ================= TIMER MODEL =================
+# ================= SAFE TIMER MODEL =================
 
 def safe_elapsed(start_time):
     if start_time is None:
@@ -32,7 +32,7 @@ def safe_elapsed(start_time):
     return max(0, time.time() - start_time)
 
 
-# ================= MAIN TEST ENGINE =================
+# ================= MAIN ENGINE =================
 
 def run_mental_rotation_test():
 
@@ -50,16 +50,18 @@ def run_mental_rotation_test():
         )
         st.session_state.mrt_options = None
 
+    # ---------- Response Logger ----------
+
     def record_answer(is_correct, timed_out=False):
 
         if st.session_state.mrt_question_start is None:
             return
 
-        question_time = safe_elapsed(st.session_state.mrt_question_start)
+        reaction_time = safe_elapsed(st.session_state.mrt_question_start)
 
         st.session_state.mrt_results.append({
             "correct": is_correct,
-            "time": question_time,
+            "time": reaction_time,
             "timed_out": timed_out
         })
 
@@ -79,7 +81,7 @@ def run_mental_rotation_test():
 
         avg_time = sum(
             r["time"] for r in st.session_state.mrt_results
-        ) / TOTAL_QUESTIONS if len(st.session_state.mrt_results) > 0 else 0
+        ) / TOTAL_QUESTIONS if st.session_state.mrt_results else 0
 
         timed_out = sum(
             1 for r in st.session_state.mrt_results if r["timed_out"]
@@ -104,6 +106,7 @@ def run_mental_rotation_test():
                 "mrt_question_start",
                 "mrt_randomized",
                 "mrt_options",
+                "heartbeat"
             ]:
                 st.session_state.pop(key, None)
 
@@ -127,7 +130,7 @@ def run_mental_rotation_test():
 
     st.progress(remaining / QUESTION_TIME_LIMIT)
 
-    # Timeout handling
+    # Timeout detection
     if elapsed >= QUESTION_TIME_LIMIT:
         record_answer(False, timed_out=True)
         st.rerun()
@@ -164,3 +167,11 @@ def run_mental_rotation_test():
         if st.button("Option B"):
             record_answer(options[1]["correct"])
             st.rerun()
+
+    # Cloud scheduler pulse (prevents timer freeze in deployment)
+    if "heartbeat" not in st.session_state:
+        st.session_state.heartbeat = time.time()
+
+    if time.time() - st.session_state.heartbeat > 0.8:
+        st.session_state.heartbeat = time.time()
+        st.rerun()

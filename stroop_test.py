@@ -73,6 +73,17 @@ def next_question():
     st.session_state.word, st.session_state.color, st.session_state.condition = generate_question()
 
 
+# ================= CLOUD HEARTBEAT PULSE =================
+
+def cloud_timer_pulse():
+
+    if st.session_state.get("current_stage") == "stroop":
+
+        if time.time() - st.session_state.get("heartbeat", time.time()) > 0.8:
+            st.session_state.heartbeat = time.time()
+            st.rerun()
+
+
 # ================= MAIN ENGINE =================
 
 def run_stroop_test():
@@ -158,6 +169,7 @@ def run_stroop_test():
                 "color",
                 "condition",
                 "start_time",
+                "heartbeat"
             ]:
                 st.session_state.pop(key, None)
 
@@ -182,30 +194,32 @@ def run_stroop_test():
 
     cols = st.columns(4)
 
-    for color_name, col in zip(COLORS.keys(), cols):
+    for color_name in cols:
 
-        with col:
+        pass
 
-            if st.button(color_name, key=f"{st.session_state.q_index}_{color_name}") and not st.session_state.answered:
+    for color_name in COLORS.keys():
 
-                rt = round(elapsed, 2)
+        if st.button(color_name, key=f"{st.session_state.q_index}_{color_name}") and not st.session_state.answered:
 
-                correct = color_name.lower() == st.session_state.color
+            rt = round(elapsed, 2)
 
-                record_response(
-                    st.session_state.results,
-                    st.session_state.q_index,
-                    st.session_state.word,
-                    st.session_state.color,
-                    st.session_state.condition,
-                    color_name,
-                    correct,
-                    rt
-                )
+            correct = color_name.lower() == st.session_state.color
 
-                st.session_state.answered = True
-                next_question()
-                st.rerun()
+            record_response(
+                st.session_state.results,
+                st.session_state.q_index,
+                st.session_state.word,
+                st.session_state.color,
+                st.session_state.condition,
+                color_name,
+                correct,
+                rt
+            )
+
+            st.session_state.answered = True
+            next_question()
+            st.rerun()
 
     # ---------- TIMEOUT HANDLING ----------
 
@@ -224,3 +238,6 @@ def run_stroop_test():
 
         next_question()
         st.rerun()
+
+    # ⭐ Cloud scheduler pulse
+    cloud_timer_pulse()

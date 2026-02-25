@@ -8,16 +8,10 @@ QUESTION_POOL_SIZE = 100
 
 # ================= ENGINE INITIALIZER =================
 
-def init_engine():
-
-    if "engine_lock" not in st.session_state:
-        st.session_state.engine_lock = True
-
-    if "questions_generated" not in st.session_state:
-        st.session_state.questions_generated = False
-
-
-init_engine()
+def safe_elapsed(start_time):
+    if start_time is None:
+        return 0
+    return max(0, time.time() - start_time)
 
 
 # ================= QUESTION GENERATOR =================
@@ -94,21 +88,13 @@ def generate_math_questions(num=QUESTION_POOL_SIZE):
     return questions
 
 
-# ================= TIMER MODEL =================
-
-def safe_elapsed(start_time):
-    if start_time is None:
-        return 0
-    return max(0, time.time() - start_time)
-
-
 # ================= MAIN TEST ENGINE =================
 
 def run_math_test():
 
     st.title("Numerical Ability Cognitive Test")
 
-    # ---------- Session Initialization ----------
+    # ---------- SESSION INITIALIZATION ----------
 
     if "test_started" not in st.session_state:
         st.session_state.test_started = False
@@ -118,7 +104,6 @@ def run_math_test():
 
     if "questions" not in st.session_state:
         st.session_state.questions = generate_math_questions()
-        st.session_state.questions_generated = True
 
     if "current_question_index" not in st.session_state:
         st.session_state.current_question_index = 0
@@ -139,7 +124,7 @@ def run_math_test():
             "high_correct": 0,
         }
 
-    # ---------- Start Screen ----------
+    # ---------- START SCREEN ----------
 
     if not st.session_state.test_started:
 
@@ -264,4 +249,10 @@ def run_math_test():
                 pass
 
         st.session_state.current_question_index += 1
+        st.rerun()
+
+    # ---------- CLOUD SAFE REFRESH ----------
+
+    if st.session_state.test_started and remaining > 0:
+        time.sleep(0.05)
         st.rerun()

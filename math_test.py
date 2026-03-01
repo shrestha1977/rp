@@ -128,7 +128,7 @@ def run_math_test():
 
     if not st.session_state.test_started:
 
-        st.write("You will have **5 minutes** to solve as many questions as possible.")
+        st.write("You will have **5 minutes** to solve as many questions as possible.You can skip any question by leaving the answer blank and pressing Enter.")
 
         if st.button("Start Test"):
 

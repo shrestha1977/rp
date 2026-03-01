@@ -224,33 +224,40 @@ def run_math_test():
 
     if submit:
 
-        if ans.strip():
-            try:
-                numeric_answer = int(ans.strip())
+        cleaned = ans.strip()
 
-                st.session_state.attempted += 1
+        # ---- BLANK → SKIP ----
+        if cleaned == "":
+            st.session_state.current_question_index += 1
+            st.rerun()
 
-                if numeric_answer == correct_answer:
-                    st.session_state.correct_count += 1
+        # ---- VALID INTEGER ----
+        try:
+            numeric_answer = int(cleaned)
 
-                if difficulty == "easy":
-                    level = "low"
-                elif difficulty == "moderate":
-                    level = "moderate"
-                else:
-                    level = "high"
+            st.session_state.attempted += 1
 
-                st.session_state.difficulty_stats[f"{level}_attempted"] += 1
+            if numeric_answer == correct_answer:
+                st.session_state.correct_count += 1
 
-                if numeric_answer == correct_answer:
-                    st.session_state.difficulty_stats[f"{level}_correct"] += 1
+            if difficulty == "easy":
+                level = "low"
+            elif difficulty == "moderate":
+                level = "moderate"
+            else:
+                level = "high"
 
-            except:
-                pass
+            st.session_state.difficulty_stats[f"{level}_attempted"] += 1
 
-        st.session_state.current_question_index += 1
-        st.rerun()
+            if numeric_answer == correct_answer:
+                st.session_state.difficulty_stats[f"{level}_correct"] += 1
 
+            st.session_state.current_question_index += 1
+            st.rerun()
+
+        # ---- INVALID INPUT ----
+        except ValueError:
+            st.warning("⚠ Please enter a valid integer value or leave blank to skip.")
     # ---------- CLOUD SAFE REFRESH ----------
 
     if st.session_state.test_started and remaining > 0:

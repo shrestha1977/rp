@@ -124,6 +124,10 @@ def run_math_test():
             "high_correct": 0,
         }
 
+    # 🔵 ADDED THIS (only new variable)
+    if "invalid_input_time" not in st.session_state:
+        st.session_state.invalid_input_time = None
+
     # ---------- START SCREEN ----------
 
     if not st.session_state.test_started:
@@ -226,12 +230,11 @@ def run_math_test():
 
         cleaned = ans.strip()
 
-        # ---- BLANK → SKIP ----
+        # Blank → Skip
         if cleaned == "":
             st.session_state.current_question_index += 1
             st.rerun()
 
-        # ---- VALID INTEGER ----
         try:
             numeric_answer = int(cleaned)
 
@@ -255,9 +258,16 @@ def run_math_test():
             st.session_state.current_question_index += 1
             st.rerun()
 
-        # ---- INVALID INPUT ----
         except ValueError:
+            st.session_state.invalid_input_time = time.time()
+
+    # 🔵 TEMP WARNING DISPLAY (2 seconds)
+    if st.session_state.invalid_input_time:
+        if time.time() - st.session_state.invalid_input_time < 2:
             st.warning("⚠ Please enter a valid integer value or leave blank to skip.")
+        else:
+            st.session_state.invalid_input_time = None
+
     # ---------- CLOUD SAFE REFRESH ----------
 
     if st.session_state.test_started and remaining > 0:

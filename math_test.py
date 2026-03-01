@@ -124,12 +124,6 @@ def run_math_test():
             "high_correct": 0,
         }
 
-    # ✅ FEEDBACK STATE (ONLY ADDITION)
-    if "feedback_message" not in st.session_state:
-        st.session_state.feedback_message = None
-    if "feedback_time" not in st.session_state:
-        st.session_state.feedback_time = None
-
     # ---------- START SCREEN ----------
 
     if not st.session_state.test_started:
@@ -158,22 +152,6 @@ def run_math_test():
     secs = max(0, remaining) % 60
 
     st.metric("⏳ Time Remaining", f"{mins:02d}:{secs:02d}")
-
-    # ---------- FEEDBACK DISPLAY (NEW LOGIC) ----------
-
-    if st.session_state.feedback_message:
-
-        if time.time() - st.session_state.feedback_time < 2:
-            if "Correct" in st.session_state.feedback_message:
-                st.success(st.session_state.feedback_message)
-            else:
-                st.error(st.session_state.feedback_message)
-
-            return
-        else:
-            st.session_state.feedback_message = None
-            st.session_state.current_question_index += 1
-            st.rerun()
 
     # ---------- TIME UP ----------
 
@@ -218,8 +196,7 @@ def run_math_test():
             keys_to_clear = [
                 "test_started", "start_time", "questions",
                 "current_question_index", "correct_count",
-                "attempted", "difficulty_stats",
-                "feedback_message", "feedback_time"
+                "attempted", "difficulty_stats"
             ]
 
             for key in keys_to_clear:
@@ -253,6 +230,9 @@ def run_math_test():
 
                 st.session_state.attempted += 1
 
+                if numeric_answer == correct_answer:
+                    st.session_state.correct_count += 1
+
                 if difficulty == "easy":
                     level = "low"
                 elif difficulty == "moderate":
@@ -263,17 +243,12 @@ def run_math_test():
                 st.session_state.difficulty_stats[f"{level}_attempted"] += 1
 
                 if numeric_answer == correct_answer:
-                    st.session_state.correct_count += 1
                     st.session_state.difficulty_stats[f"{level}_correct"] += 1
-                    st.session_state.feedback_message = "Correct!"
-                else:
-                    st.session_state.feedback_message = f"Wrong! Correct answer: {correct_answer}"
-
-                st.session_state.feedback_time = time.time()
 
             except:
                 pass
 
+        st.session_state.current_question_index += 1
         st.rerun()
 
     # ---------- CLOUD SAFE REFRESH ----------
